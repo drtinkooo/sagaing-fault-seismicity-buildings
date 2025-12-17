@@ -319,7 +319,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Tin Ko Oo**
 - GitHub: [@drtinkooo](https://github.com/drtinkooo)
 - Affiliation: Mahidol University, Thailand
-- Research: Geoscience, Southeast Asian Tectonics, Remote Sensing
 
 ## 🙏 Acknowledgments
 
