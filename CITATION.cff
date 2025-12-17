@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Sagaing Fault Seismicity & Building Exposure Map"
+abstract: "An interactive web map visualizing earthquake activity along Myanmar's Sagaing Fault system (March 28 - December 10, 2025), integrated with tectonic lineaments and GlobalBuildingAtlas building footprint data for seismic risk assessment."
+authors:
+  - family-names: "Oo"
+    given-names: "Tin Ko"
+    orcid: ""
+    affiliation: "Mahidol University, Thailand"
+version: "1.0.0"
+date-released: "2025-12-17"
+license: MIT
+repository-code: "https://github.com/drtinkooo/sagaing-fault-seismicity-buildings"
+url: "https://drtinkooo.github.io/sagaing-fault-seismicity-buildings/"
+keywords:
+  - earthquake
+  - seismology
+  - Myanmar
+  - Sagaing Fault
+  - building exposure
+  - GlobalBuildingAtlas
+  - web map
+  - Leaflet
+  - GIS
+  - natural hazards
+  - tectonics
+
+references:
+  - type: dataset
+    authors:
+      - family-names: "Zhu"
+        given-names: "Xiao Xiang"
+      - family-names: "Chen"
+        given-names: "Shengxi"
+      - family-names: "Zhang"
+        given-names: "Fangfang"
+      - family-names: "Shi"
+        given-names: "Yifei"
+      - family-names: "Wang"
+        given-names: "Yi"
+    title: "GlobalBuildingAtlas: an open global and complete dataset of building polygons, heights and LoD1 3D models"
+    journal: "Earth System Science Data"
+    volume: 17
+    issue: 12
+    pages: "6647-6668"
+    year: 2025
+    doi: "10.5194/essd-17-6647-2025"
+    
+  - type: data
+    authors:
+      - name: "U.S. Geological Survey"
+    title: "USGS Earthquake Hazards Program"
+    year: 2025
+    url: "https://earthquake.usgs.gov/"
+    
+  - type: data
+    authors:
+      - name: "Myanmar Geosciences Society"
+    title: "Myanmar Tectonic Map"
+    year: 2011

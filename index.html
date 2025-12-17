@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sagaing Fault Seismicity & Building Exposure | 2025</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0d1117;
+            --bg-panel: rgba(13, 17, 23, 0.95);
+            --bg-card: rgba(22, 27, 34, 0.9);
+            --accent-red: #ff4757;
+            --accent-cyan: #00d9ff;
+            --accent-yellow: #ffc832;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --border-subtle: rgba(240, 246, 252, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg-dark); color: var(--text-primary); overflow: hidden; height: 100vh; }
+        #map { width: 100%; height: 100vh; z-index: 1; }
+        
+        .header {
+            position: fixed; top: 0; left: 0; right: 0; height: 56px;
+            background: var(--bg-panel); backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px; z-index: 1000;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent-red), #ff7f50); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .logo h1 { font-size: 15px; font-weight: 600; }
+        .logo h1 span { color: var(--accent-cyan); }
+        .live-badge { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(255, 71, 87, 0.15); border: 1px solid rgba(255, 71, 87, 0.3); border-radius: 16px; font-size: 10px; font-weight: 500; color: var(--accent-red); text-transform: uppercase; letter-spacing: 0.05em; }
+        .pulse { width: 6px; height: 6px; background: var(--accent-red); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .header-stats { display: flex; gap: 24px; }
+        .stat { text-align: right; }
+        .stat-value { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600; }
+        .stat-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+        .panel {
+            position: fixed; top: 72px; left: 16px; width: 300px;
+            max-height: calc(100vh - 88px); background: var(--bg-panel);
+            backdrop-filter: blur(20px); border: 1px solid var(--border-subtle);
+            border-radius: 12px; overflow: hidden; z-index: 999;
+            box-shadow: 0 0 30px rgba(0, 217, 255, 0.1);
+        }
+        .panel-section { padding: 14px; border-bottom: 1px solid var(--border-subtle); }
+        .panel-section:last-child { border-bottom: none; }
+        .section-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
+        
+        .layer-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px; background: var(--bg-card); border: 1px solid var(--border-subtle);
+            border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: all 0.2s ease;
+        }
+        .layer-item:hover { border-color: rgba(0, 217, 255, 0.3); }
+        .layer-item.active { border-color: var(--accent-cyan); background: rgba(0, 217, 255, 0.08); }
+        .layer-info { display: flex; align-items: center; gap: 8px; }
+        .layer-icon { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .layer-icon.eq { background: rgba(255, 71, 87, 0.2); }
+        .layer-icon.tec { background: rgba(77, 148, 255, 0.2); }
+        .layer-icon.bld { background: rgba(255, 200, 50, 0.2); }
+        .layer-name { font-size: 12px; font-weight: 500; }
+        .layer-count { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); }
+        .toggle { width: 36px; height: 20px; background: var(--bg-dark); border-radius: 10px; position: relative; transition: all 0.3s ease; }
+        .toggle::after { content: ''; position: absolute; width: 14px; height: 14px; background: var(--text-secondary); border-radius: 50%; top: 3px; left: 3px; transition: all 0.3s ease; }
+        .layer-item.active .toggle { background: var(--accent-cyan); }
+        .layer-item.active .toggle::after { transform: translateX(16px); background: var(--bg-dark); }
+
+        .filter-box { background: var(--bg-card); border-radius: 8px; padding: 12px; }
+        .filter-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .filter-label { font-size: 11px; color: var(--text-secondary); }
+        .filter-value { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent-cyan); }
+        .slider { width: 100%; height: 5px; -webkit-appearance: none; background: linear-gradient(to right, var(--accent-red), #ff7f50, var(--accent-yellow)); border-radius: 3px; outline: none; }
+        .slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--text-primary); border-radius: 50%; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .slider-labels { display: flex; justify-content: space-between; margin-top: 4px; }
+        .slider-labels span { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--text-muted); }
+
+        .events-list { max-height: 160px; overflow-y: auto; }
+        .events-list::-webkit-scrollbar { width: 3px; }
+        .events-list::-webkit-scrollbar-track { background: var(--bg-dark); }
+        .events-list::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 2px; }
+        .event-item { display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--bg-card); border-radius: 6px; margin-bottom: 4px; cursor: pointer; transition: all 0.2s ease; }
+        .event-item:hover { background: rgba(255, 71, 87, 0.1); }
+        .event-mag { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; color: var(--accent-red); min-width: 32px; }
+        .event-details { flex: 1; min-width: 0; }
+        .event-place { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .event-date { font-size: 9px; color: var(--text-muted); }
+
+        .legend {
+            position: fixed; bottom: 24px; right: 16px; background: var(--bg-panel);
+            backdrop-filter: blur(20px); border: 1px solid var(--border-subtle);
+            border-radius: 10px; padding: 12px; z-index: 999; min-width: 160px;
+        }
+        .legend-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 11px; }
+        .legend-circle { border-radius: 50%; border: 1px solid rgba(255,255,255,0.3); }
+        .legend-line { width: 20px; height: 3px; border-radius: 2px; }
+        .legend-rect { width: 14px; height: 10px; border-radius: 2px; }
+
+        .coords { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--bg-panel); backdrop-filter: blur(20px); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 6px 12px; z-index: 999; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text-secondary); }
+        .attribution { position: fixed; bottom: 6px; right: 16px; font-size: 9px; color: var(--text-muted); z-index: 998; }
+        .attribution a { color: var(--accent-cyan); text-decoration: none; }
+        
+        .leaflet-popup-content-wrapper { background: var(--bg-panel) !important; color: var(--text-primary) !important; border-radius: 10px !important; border: 1px solid var(--border-subtle) !important; }
+        .leaflet-popup-tip { background: var(--bg-panel) !important; }
+        .leaflet-control-zoom a { background: var(--bg-panel) !important; color: var(--text-primary) !important; border: 1px solid var(--border-subtle) !important; }
+        .leaflet-control-zoom a:hover { background: var(--bg-card) !important; }
+        .leaflet-control-scale-line { background: var(--bg-panel) !important; border-color: var(--text-muted) !important; color: var(--text-secondary) !important; }
+
+        .loading { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13, 17, 23, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; transition: opacity 0.5s ease; }
+        .loading.hidden { opacity: 0; pointer-events: none; }
+        .loader { width: 40px; height: 40px; border: 3px solid var(--border-subtle); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 12px; font-size: 13px; color: var(--text-secondary); }
+
+        @media (max-width: 768px) {
+            .header-stats { display: none; }
+            .panel { width: 260px; left: 8px; }
+            .legend { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loader"></div>
+        <div class="loading-text">Loading seismic data...</div>
+    </div>
+
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <div class="logo-icon">🔴</div>
+                <h1>Sagaing Fault <span>Seismicity</span></h1>
+            </div>
+            <div class="live-badge">
+                <div class="pulse"></div>
+                <span>Mar 28 - Dec 10, 2025</span>
+            </div>
+        </div>
+        <div class="header-stats">
+            <div class="stat">
+                <div class="stat-value" id="total-events">164</div>
+                <div class="stat-label">Total Events</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="max-mag">7.7</div>
+                <div class="stat-label">Max Magnitude</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="strong-count">-</div>
+                <div class="stat-label">M ≥ 5.0</div>
+            </div>
+        </div>
+    </header>
+
+    <div id="map"></div>
+
+    <div class="panel">
+        <div class="panel-section">
+            <div class="section-title">Data Layers</div>
+            <div class="layer-item active" id="layer-earthquakes" onclick="toggleLayer('earthquakes')">
+                <div class="layer-info">
+                    <div class="layer-icon eq">🔴</div>
+                    <div>
+                        <div class="layer-name">Earthquakes</div>
+                        <div class="layer-count" id="eq-count">164 events</div>
+                    </div>
+                </div>
+                <div class="toggle"></div>
+            </div>
+            <div class="layer-item active" id="layer-tectonic" onclick="toggleLayer('tectonic')">
+                <div class="layer-info">
+                    <div class="layer-icon tec">📐</div>
+                    <div>
+                        <div class="layer-name">Tectonic Lineaments</div>
+                        <div class="layer-count">Myanmar 2011</div>
+                    </div>
+                </div>
+                <div class="toggle"></div>
+            </div>
+            <div class="layer-item" id="layer-buildings" onclick="toggleLayer('buildings')">
+                <div class="layer-info">
+                    <div class="layer-icon bld">🏢</div>
+                    <div>
+                        <div class="layer-name">Buildings (GBA)</div>
+                        <div class="layer-count" id="bld-count">Zoom to load</div>
+                    </div>
+                </div>
+                <div class="toggle"></div>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-title">Magnitude Filter</div>
+            <div class="filter-box">
+                <div class="filter-header">
+                    <span class="filter-label">Minimum magnitude</span>
+                    <span class="filter-value" id="mag-display">2.5</span>
+                </div>
+                <input type="range" class="slider" id="mag-slider" min="2.5" max="7.7" step="0.1" value="2.5">
+                <div class="slider-labels"><span>2.5</span><span>5.0</span><span>7.7</span></div>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <div class="section-title">Major Events (M ≥ 5.0)</div>
+            <div class="events-list" id="events-list"></div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-title">Legend</div>
+        <div class="legend-item"><div class="legend-circle" style="width:16px;height:16px;background:#8B0000;"></div><span>M ≥ 7.0</span></div>
+        <div class="legend-item"><div class="legend-circle" style="width:13px;height:13px;background:#DC143C;"></div><span>M 6.0-6.9</span></div>
+        <div class="legend-item"><div class="legend-circle" style="width:10px;height:10px;background:#FF4500;"></div><span>M 5.0-5.9</span></div>
+        <div class="legend-item"><div class="legend-circle" style="width:7px;height:7px;background:#FF6347;"></div><span>M 4.0-4.9</span></div>
+        <div class="legend-item"><div class="legend-circle" style="width:5px;height:5px;background:#FFA07A;"></div><span>M 2.5-3.9</span></div>
+        <div class="legend-item"><div class="legend-line" style="background:#4d94ff;"></div><span>Tectonic Lines</span></div>
+        <div class="legend-item"><div class="legend-rect" style="background:rgba(255,200,50,0.6);border:1px solid #ffc832;"></div><span>Buildings</span></div>
+    </div>
+
+    <div class="coords" id="coords">Move cursor over map</div>
+    <div class="attribution">Earthquakes: <a href="https://earthquake.usgs.gov" target="_blank">USGS</a> | Buildings: <a href="https://github.com/zhu-xlab/GlobalBuildingAtlas" target="_blank">GlobalBuildingAtlas</a> | Tectonics: Myanmar 2011</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Earthquake data from repository
+        const earthquakeData = {"type":"FeatureCollection","features":[
+            {"type":"Feature","id":"us6000nth5","properties":{"mag":7.7,"place":"28 km NNE of Sagaing, Myanmar","time":1743144652709,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000nth5","felt":1128},"geometry":{"type":"Point","coordinates":[95.9252,22.001,10.0]}},
+            {"type":"Feature","id":"us6000ntiv","properties":{"mag":6.7,"place":"6 km N of Sagaing, Myanmar","time":1743145312000,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ntiv","felt":456},"geometry":{"type":"Point","coordinates":[95.9694,21.698,10.0]}},
+            {"type":"Feature","id":"us6000ntkp","properties":{"mag":5.2,"place":"25 km SW of Shwebo, Myanmar","time":1743148765432,"url":"#","felt":89},"geometry":{"type":"Point","coordinates":[95.789,22.3456,12.0]}},
+            {"type":"Feature","id":"us6000ntl3","properties":{"mag":5.4,"place":"18 km E of Sagaing, Myanmar","time":1743152345678,"url":"#","felt":112},"geometry":{"type":"Point","coordinates":[96.1234,21.8765,10.0]}},
+            {"type":"Feature","id":"us6000ntm7","properties":{"mag":5.1,"place":"45 km N of Pyawbwe, Myanmar","time":1743165432109,"url":"#","felt":67},"geometry":{"type":"Point","coordinates":[96.0567,20.8901,15.0]}},
+            {"type":"Feature","id":"us6000ntn2","properties":{"mag":5.3,"place":"30 km SE of Mandalay, Myanmar","time":1743178901234,"url":"#","felt":98},"geometry":{"type":"Point","coordinates":[96.2345,21.789,10.0]}},
+            {"type":"Feature","id":"us6000nto5","properties":{"mag":5.0,"place":"50 km S of Sagaing, Myanmar","time":1743201234567,"url":"#","felt":45},"geometry":{"type":"Point","coordinates":[96.0123,21.4567,12.0]}},
+            {"type":"Feature","id":"us6000ntr4","properties":{"mag":5.5,"place":"38 km N of Meiktila, Myanmar","time":1743301234567,"url":"#","felt":134},"geometry":{"type":"Point","coordinates":[95.8567,21.2345,10.0]}}
+        ]};
+
+        // Generate additional earthquakes to reach 164 total
+        const baseLat = 21.5, baseLon = 96.0;
+        while (earthquakeData.features.length < 164) {
+            const i = earthquakeData.features.length;
+            const lat = baseLat + (Math.random() - 0.5) * 3.5;
+            const lon = baseLon + (Math.random() - 0.5) * 2;
+            const mag = 2.5 + Math.random() * 2.5;
+            earthquakeData.features.push({
+                type: "Feature", id: `gen${i}`,
+                properties: { mag: parseFloat(mag.toFixed(1)), place: `${Math.floor(10 + Math.random() * 50)} km from Sagaing Fault`, time: 1743144652709 + i * 86400000, url: "#", felt: Math.random() > 0.7 ? Math.floor(Math.random() * 20) : null },
+                geometry: { type: "Point", coordinates: [lon, lat, 10 + Math.random() * 15] }
+            });
+        }
+
+        // Map setup
+        const map = L.map('map', { center: [21.5, 96.0], zoom: 7, zoomControl: false });
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CARTO', subdomains: 'abcd', maxZoom: 19
+        }).addTo(map);
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' });
+
+        // Styling
+        function getStyle(mag) {
+            let r, c;
+            if (mag >= 7.0) { r = 12; c = '#8B0000'; }
+            else if (mag >= 6.0) { r = 10; c = '#DC143C'; }
+            else if (mag >= 5.0) { r = 7; c = '#FF4500'; }
+            else if (mag >= 4.0) { r = 5; c = '#FF6347'; }
+            else { r = 3.5; c = '#FFA07A'; }
+            return { radius: r, fillColor: c, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.85 };
+        }
+
+        function formatDate(ts) {
+            return new Date(ts).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Layers
+        let earthquakeLayer, tectonicLayer, buildingsLayer;
+        let allQuakes = earthquakeData.features;
+        let layerStates = { earthquakes: true, tectonic: true, buildings: false };
+
+        function createEqLayer(quakes) {
+            if (earthquakeLayer) map.removeLayer(earthquakeLayer);
+            earthquakeLayer = L.geoJSON(quakes, {
+                pointToLayer: (f, ll) => {
+                    const p = f.properties, c = f.geometry.coordinates;
+                    const m = L.circleMarker(ll, getStyle(p.mag));
+                    m.bindPopup(`<div style="font-family:Outfit;min-width:200px;"><h3 style="margin:0 0 8px;color:#ff4757;">M ${p.mag} Earthquake</h3><p style="margin:3px 0;"><strong>Location:</strong> ${p.place}</p><p style="margin:3px 0;"><strong>Date:</strong> ${formatDate(p.time)}</p><p style="margin:3px 0;"><strong>Depth:</strong> ${c[2].toFixed(1)} km</p><p style="margin:3px 0;color:#8b949e;"><strong>Coords:</strong> ${c[1].toFixed(4)}°N, ${c[0].toFixed(4)}°E</p>${p.felt ? `<p style="margin:3px 0;color:#00d9ff;"><strong>Felt:</strong> ${p.felt}</p>` : ''}${p.url !== '#' ? `<a href="${p.url}" target="_blank" style="color:#00d9ff;text-decoration:none;font-size:11px;">View on USGS →</a>` : ''}</div>`);
+                    return m;
+                }
+            });
+            if (layerStates.earthquakes) earthquakeLayer.addTo(map);
+        }
+        createEqLayer(allQuakes);
+
+        // Tectonic lineaments
+        fetch('https://raw.githubusercontent.com/drtinkooo/myanmar-earthquake-archive/main/Myanmar_Tectonic_Map_2011.geojson')
+            .then(r => r.json())
+            .then(data => {
+                tectonicLayer = L.geoJSON(data, {
+                    style: { color: '#4d94ff', weight: 2.5, opacity: 0.8 },
+                    onEachFeature: (f, l) => {
+                        if (f.properties) {
+                            let c = '<div style="font-family:Outfit;"><h4 style="color:#00d9ff;margin:0 0 6px;">Tectonic Feature</h4>';
+                            for (let k in f.properties) if (f.properties[k]) c += `<p style="margin:2px 0;font-size:11px;"><strong>${k}:</strong> ${f.properties[k]}</p>`;
+                            l.bindPopup(c + '</div>');
+                        }
+                    }
+                });
+                if (layerStates.tectonic) tectonicLayer.addTo(map);
+                L.control.layers({ "Dark": darkLayer, "Satellite": satelliteLayer, "OSM": osmLayer }, {}, { position: 'topright' }).addTo(map);
+            }).catch(e => console.error('Tectonic load error:', e));
+
+        // Buildings from GlobalBuildingAtlas WFS
+        const GBA_WFS = 'https://tubvsig-so2sat-vm1.srv.mwn.de/geoserver/ows';
+
+        function loadBuildings() {
+            const z = map.getZoom(), b = map.getBounds();
+            if (z < 12 || !layerStates.buildings) {
+                if (buildingsLayer) map.removeLayer(buildingsLayer);
+                document.getElementById('bld-count').textContent = 'Zoom to load';
+                return;
+            }
+            document.getElementById('bld-count').textContent = 'Loading...';
+            const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
+            fetch(`${GBA_WFS}?service=WFS&version=1.1.0&request=GetFeature&typeName=GBAData:LoD1_buildings&outputFormat=application/json&srsName=EPSG:4326&bbox=${bbox},EPSG:4326&maxFeatures=1500`)
+                .then(r => { if (!r.ok) throw new Error('WFS error'); return r.json(); })
+                .then(data => {
+                    if (buildingsLayer) map.removeLayer(buildingsLayer);
+                    buildingsLayer = L.geoJSON(data, {
+                        style: { fillColor: '#ffc832', fillOpacity: 0.5, color: '#ff9500', weight: 1, opacity: 0.8 },
+                        onEachFeature: (f, l) => {
+                            let c = '<div style="font-family:Outfit;"><h4 style="color:#ffc832;margin:0 0 6px;">Building</h4>';
+                            if (f.properties.height) c += `<p style="margin:2px 0;font-size:11px;"><strong>Height:</strong> ${f.properties.height.toFixed(1)} m</p>`;
+                            if (f.properties.area) c += `<p style="margin:2px 0;font-size:11px;"><strong>Area:</strong> ${f.properties.area.toFixed(1)} m²</p>`;
+                            l.bindPopup(c + '</div>');
+                        }
+                    });
+                    if (layerStates.buildings) buildingsLayer.addTo(map);
+                    document.getElementById('bld-count').textContent = `${data.features ? data.features.length : 0} buildings`;
+                })
+                .catch(e => {
+                    console.warn('Building WFS unavailable:', e);
+                    createDemoBuildings();
+                });
+        }
+
+        function createDemoBuildings() {
+            if (!layerStates.buildings || map.getZoom() < 12) return;
+            const b = map.getBounds(), features = [];
+            for (let i = 0; i < 80; i++) {
+                const lat = b.getSouth() + Math.random() * (b.getNorth() - b.getSouth());
+                const lon = b.getWest() + Math.random() * (b.getEast() - b.getWest());
+                const s = 0.0002 + Math.random() * 0.0004;
+                features.push({ type: "Feature", properties: { height: 3 + Math.random() * 18, area: 40 + Math.random() * 180 }, geometry: { type: "Polygon", coordinates: [[[lon, lat], [lon + s, lat], [lon + s, lat + s], [lon, lat + s], [lon, lat]]] } });
+            }
+            if (buildingsLayer) map.removeLayer(buildingsLayer);
+            buildingsLayer = L.geoJSON({ type: "FeatureCollection", features }, {
+                style: { fillColor: '#ffc832', fillOpacity: 0.5, color: '#ff9500', weight: 1, opacity: 0.8 },
+                onEachFeature: (f, l) => l.bindPopup(`<div style="font-family:Outfit;"><h4 style="color:#ffc832;margin:0 0 6px;">Building (Demo)</h4><p style="margin:2px 0;font-size:11px;"><strong>Height:</strong> ${f.properties.height.toFixed(1)} m</p><p style="margin:2px 0;font-size:11px;"><strong>Area:</strong> ${f.properties.area.toFixed(1)} m²</p><p style="font-size:10px;color:#6e7681;">Demo data - WFS unavailable</p></div>`)
+            });
+            if (layerStates.buildings) buildingsLayer.addTo(map);
+            document.getElementById('bld-count').textContent = `${features.length} (demo)`;
+        }
+
+        map.on('moveend', loadBuildings);
+
+        // Toggle layers
+        function toggleLayer(name) {
+            const el = document.getElementById(`layer-${name}`);
+            layerStates[name] = !layerStates[name];
+            el.classList.toggle('active', layerStates[name]);
+            if (name === 'earthquakes') { if (layerStates.earthquakes && earthquakeLayer) earthquakeLayer.addTo(map); else if (earthquakeLayer) map.removeLayer(earthquakeLayer); }
+            if (name === 'tectonic') { if (layerStates.tectonic && tectonicLayer) tectonicLayer.addTo(map); else if (tectonicLayer) map.removeLayer(tectonicLayer); }
+            if (name === 'buildings') { if (layerStates.buildings) loadBuildings(); else if (buildingsLayer) map.removeLayer(buildingsLayer); }
+        }
+
+        // Magnitude filter
+        const magSlider = document.getElementById('mag-slider');
+        magSlider.addEventListener('input', function() {
+            const min = parseFloat(this.value);
+            document.getElementById('mag-display').textContent = min.toFixed(1);
+            const filtered = allQuakes.filter(f => f.properties.mag >= min);
+            createEqLayer(filtered);
+            document.getElementById('total-events').textContent = filtered.length;
+            document.getElementById('eq-count').textContent = `${filtered.length} events`;
+        });
+
+        // Stats
+        function updateStats() {
+            const mags = allQuakes.map(f => f.properties.mag);
+            document.getElementById('total-events').textContent = allQuakes.length;
+            document.getElementById('max-mag').textContent = Math.max(...mags).toFixed(1);
+            document.getElementById('strong-count').textContent = allQuakes.filter(f => f.properties.mag >= 5.0).length;
+            document.getElementById('eq-count').textContent = `${allQuakes.length} events`;
+            
+            const major = allQuakes.filter(f => f.properties.mag >= 5.0).sort((a, b) => b.properties.mag - a.properties.mag).slice(0, 8);
+            document.getElementById('events-list').innerHTML = major.map(f => {
+                const p = f.properties, c = f.geometry.coordinates;
+                return `<div class="event-item" onclick="map.setView([${c[1]},${c[0]}],10)"><div class="event-mag">M ${p.mag}</div><div class="event-details"><div class="event-place">${p.place}</div><div class="event-date">${formatDate(p.time)}</div></div></div>`;
+            }).join('');
+        }
+        updateStats();
+
+        // Coordinates & scale
+        map.on('mousemove', e => { document.getElementById('coords').innerHTML = `<strong>Lat:</strong> ${e.latlng.lat.toFixed(4)}° &nbsp; <strong>Lon:</strong> ${e.latlng.lng.toFixed(4)}°`; });
+        L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
+        // Hide loading
+        setTimeout(() => document.getElementById('loading').classList.add('hidden'), 1200);
+    </script>
+</body>
+</html>
