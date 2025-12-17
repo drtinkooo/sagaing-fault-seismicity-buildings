@@ -1,0 +1,59 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Node.js (if used for development)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Python (if used for data processing)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.env
+
+# Build outputs
+dist/
+build/
+*.min.js
+*.min.css
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+
+# Data files (large files should not be committed)
+*.geojson.bak
+earthquakes_raw.json
+
+# Local development
+.local/
+*.local.html
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js
